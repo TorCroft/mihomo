@@ -1,0 +1,2 @@
+# mihomo
+build mihomo
