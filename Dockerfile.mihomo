@@ -1,0 +1,19 @@
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git
+
+RUN git clone https://github.com/MetaCubeX/mihomo.git . \
+ && git fetch --tags \
+ && git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
+ 
+RUN go build -o mihomo
+
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/mihomo /usr/local/bin/mihomo
+
+CMD ["mihomo"]
