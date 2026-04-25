@@ -11,14 +11,30 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
 
+      # ========= 获取 mihomo 最新版本 =========
+      - name: Get latest mihomo version
+        id: mihomo
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest \
+            | grep '"tag_name":' \
+            | sed -E 's/.*"v([^"]+)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ========= 构建 mihomo（修正版） =========
       - name: Build mihomo
         run: |
           cat > Dockerfile.mihomo << 'EOF'
           FROM golang:1.22-alpine AS builder
           WORKDIR /app
-          RUN apk add --no-cache git
-          RUN git clone https://github.com/MetaCubeX/mihomo.git .
-          RUN go build -o mihomo
+          RUN apk add --no-cache curl tar
+
+          ARG MIHOMO_VERSION
+
+          RUN curl -L https://github.com/MetaCubeX/mihomo/archive/refs/tags/v${MIHOMO_VERSION}.tar.gz \
+              -o mihomo.tar.gz \
+           && tar -xzf mihomo.tar.gz --strip-components=1
+
+          RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o mihomo
 
           FROM alpine:latest
           RUN apk add --no-cache ca-certificates
@@ -26,15 +42,22 @@ jobs:
           CMD ["mihomo"]
           EOF
 
-          docker build -f Dockerfile.mihomo -t mihomo:local .
+          docker build \
+            --build-arg MIHOMO_VERSION=${{ steps.mihomo.outputs.version }} \
+            -f Dockerfile.mihomo \
+            -t mihomo:local .
 
+      # ========= 构建 metacubexd（建议改进版） =========
       - name: Build metacubexd
         run: |
           cat > Dockerfile.metacubexd << 'EOF'
           FROM node:20-alpine AS builder
           WORKDIR /app
           RUN apk add --no-cache git
-          RUN git clone https://github.com/MetaCubeX/metacubexd.git .
+
+          # 固定分支（比 HEAD 稳）
+          RUN git clone --depth=1 https://github.com/MetaCubeX/metacubexd.git .
+
           RUN npm install
           RUN npm run build
 
@@ -47,6 +70,7 @@ jobs:
 
           docker build -f Dockerfile.metacubexd -t metacubexd:local .
 
+      # ========= 导出 =========
       - name: Save images
         run: |
           docker save mihomo:local -o mihomo.tar
