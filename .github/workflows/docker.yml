@@ -47,25 +47,9 @@ jobs:
 
       - name: Build metacubexd
         run: |
-          cat > Dockerfile.metacubexd << 'EOF'
-          FROM node:20-alpine AS builder
-          WORKDIR /app
-          RUN apk add --no-cache git
-
-          # 固定分支（比 HEAD 稳）
-          RUN git clone --depth=1 https://github.com/MetaCubeX/metacubexd.git .
-
-          RUN npm install
-          RUN npm run build
-
-          FROM nginx:alpine
-          RUN rm -rf /usr/share/nginx/html/*
-          COPY --from=builder /app/dist /usr/share/nginx/html
-          EXPOSE 80
-          CMD ["nginx", "-g", "daemon off;"]
-          EOF
-
-          docker build -f Dockerfile.metacubexd -t metacubexd:local .
+          docker pull ghcr.io/metacubex/metacubexd:latest
+          docker tag ghcr.io/metacubex/metacubexd:latest metacubexd:local
+          docker rmi ghcr.io/metacubex/metacubexd:latest
 
       - name: Save images
         run: |
