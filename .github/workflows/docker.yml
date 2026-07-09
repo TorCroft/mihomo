@@ -29,7 +29,7 @@ jobs:
           docker save metacubexd:local -o metacubexd.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@latest
         with:
           name: docker-images
           path: |
